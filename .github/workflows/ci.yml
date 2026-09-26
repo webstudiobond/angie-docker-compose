@@ -24,16 +24,35 @@ jobs:
       - name: Install linters
         run: |
           sudo apt-get update
-          sudo apt-get install -y --no-install-recommends shfmt checkbashisms
+          sudo apt-get install -y --no-install-recommends shfmt devscripts
+
+      - name: Find all shell scripts
+        id: find-scripts
+        run: |
+          scripts=$(find usr/local/bin tests -type f \( -name "*.sh" -o -name "angie" \) | tr '\n' ' ')
+          echo "scripts=${scripts}" >> $GITHUB_OUTPUT
+          echo "Found scripts: ${scripts}"
 
       - name: Run shellcheck
-        run: shellcheck --enable=all -x $(find usr/local/bin tests -type f \( -name '*.sh' -o -name 'angie' \))
+        run: |
+          scripts="${{ steps.find-scripts.outputs.scripts }}"
+          if [ -n "${scripts}" ]; then
+            shellcheck --enable=all -x ${scripts}
+          fi
 
       - name: Check formatting (shfmt)
-        run: shfmt -d -s -i 2 $(find usr/local/bin tests -type f \( -name '*.sh' -o -name 'angie' \))
+        run: |
+          scripts="${{ steps.find-scripts.outputs.scripts }}"
+          if [ -n "${scripts}" ]; then
+            shfmt -d -s -i 2 ${scripts}
+          fi
 
       - name: Check bashisms
-        run: checkbashisms -f $(find usr/local/bin tests -type f \( -name '*.sh' -o -name 'angie' \)) || true
+        run: |
+          scripts="${{ steps.find-scripts.outputs.scripts }}"
+          if [ -n "${scripts}" ]; then
+            checkbashisms -f ${scripts} || true
+          fi
 
   test:
     name: Shell Tests
