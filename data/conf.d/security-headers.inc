@@ -1,0 +1,10 @@
+add_header X-Frame-Options "SAMEORIGIN" always;
+add_header X-Content-Type-Options "nosniff" always;
+add_header X-XSS-Protection "1; mode=block" always;
+add_header Referrer-Policy "strict-origin-when-cross-origin" always;
+add_header Permissions-Policy "accelerometer=(), gamepad=(), gyroscope=()" always;
+add_header Cross-Origin-Resource-Policy "cross-origin" always;
+add_header Cross-Origin-Opener-Policy "unsafe-none" always;
+add_header Cross-Origin-Embedder-Policy "unsafe-none" always;
+add_header X-Download-Options "noopen" always;
+add_header X-Permitted-Cross-Domain-Policies "none" always;

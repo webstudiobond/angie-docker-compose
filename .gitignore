@@ -1,0 +1,9 @@
+coverage/
+.bashunit/
+
+*.md
+!README.md
+!DEVELOPMENT.md
+!.github/SECURITY.md
+
+data/conf.d/cloudflare-ips.inc

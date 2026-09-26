@@ -1,0 +1,73 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  lint:
+    name: Lint & Validate
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+
+      - name: Validate docker-compose.yaml
+        run: docker compose -f docker-compose.yaml config --quiet
+
+      - name: Run shellcheck
+        run: shellcheck --enable=all -x $(find usr/local/bin tests -type f -name '*.sh')
+
+      - name: Check formatting (shfmt)
+        run: shfmt -d -s -i 2 $(find usr/local/bin tests -type f -name '*.sh')
+
+      - name: Install checkbashisms
+        run: sudo apt-get update && sudo apt-get install -y --no-install-recommends checkbashisms
+
+      - name: Check bashisms
+        run: checkbashisms -f $(find usr/local/bin tests -type f -name '*.sh') || true
+
+  test:
+    name: Shell Tests
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+
+      - uses: TypedDevs/bashunit@860c797a48e34be20b019a70f58c0e06d15c8d33 # 0.51.0
+
+      - name: Run unit tests
+        run: bashunit tests/
+
+  secrets:
+    name: Secrets Scan
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          fetch-depth: 0
+
+      - uses: gitleaks/gitleaks-action@e0c47f4f8be36e29cdc102c57e68cb5cbf0e8d1e # v3.0.0
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+  trivy:
+    name: Trivy Scan
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - name: Run Trivy filesystem scan
+        uses: aquasecurity/trivy-action@ed142fd0673e97e23eac54620cfb913e5ce36c25 # v0.36.0
+        with:
+          scan-type: 'fs'
+          scan-ref: '.'
+          exit-code: '1'
+          severity: 'CRITICAL,HIGH'

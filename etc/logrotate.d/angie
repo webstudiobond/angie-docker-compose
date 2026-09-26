@@ -1,0 +1,15 @@
+/home/angie/data/logs/*.log /home/angie/data/logs/domains/*.log {
+    su angie angie
+    daily
+    maxsize 10M
+    missingok
+    rotate 14
+    compress
+    delaycompress
+    notifempty
+    create 0640 angie angie
+    sharedscripts
+    postrotate
+        docker kill --signal=USR1 angie > /dev/null 2>&1 || true
+    endscript
+}

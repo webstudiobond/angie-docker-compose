@@ -1,0 +1,1 @@
+0 5 * * 1 root /usr/local/bin/update-cf-ips.sh

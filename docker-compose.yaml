@@ -1,0 +1,60 @@
+name: angie
+
+services:
+  angie:
+    image: docker.angie.software/angie:latest
+    container_name: angie
+    hostname: angie
+    restart: always
+    healthcheck:
+      test: ["CMD", "curl", "-f", "-s", "-o", "/dev/null", "http://127.0.0.1/healthz"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 10s
+    ports:
+      - "443:443/tcp"
+      - "443:443/udp"
+      - "80:80"
+    volumes:
+      - /etc/localtime:/etc/localtime:ro
+      - ./data/angie.conf:/etc/angie/angie.conf:ro
+      - ./data/mime.types:/etc/angie/mime.types:ro
+      - ./data/modules.conf:/etc/angie/modules.conf:ro
+      - ./data/conf.d:/etc/angie/conf.d:ro
+      - ./data/ssl/dhparam.pem:/etc/angie/dhparam.pem:ro
+      - ./data/certs:/var/lib/angie/acme:rw
+      - ./data/html:/usr/share/angie/html:ro
+      - ./data/logs:/var/log/angie:rw
+      - ./data/cache:/var/cache/angie:rw
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "3"
+    networks:
+      - frontend_gateway
+    read_only: true
+    security_opt:
+      - no-new-privileges:true
+    cap_drop:
+      - ALL
+    cap_add:
+      - NET_BIND_SERVICE
+    tmpfs:
+      - /run/angie:mode=1777,noexec,nosuid
+      - /tmp:mode=1777,noexec,nosuid
+    deploy:
+      resources:
+        limits:
+          cpus: '2.0'
+          memory: 1G
+    mem_reservation: 256M
+    user: "${APP_UID:-2001}:${APP_GID:-2001}"
+
+networks:
+  frontend_gateway:
+    name: frontend_gateway
+    ipam:
+      config:
+          - subnet: 172.20.0.0/16

@@ -1,0 +1,50 @@
+#!/usr/bin/env bash
+
+set -euo pipefail
+[[ ${TRACE:-0} == "1" ]] && set -x
+
+: "${CONTAINER_NAME:=angie}"
+
+usage() {
+  printf "Usage: %s [options]\n\n" "$(basename "$0")"
+  printf "Execute Angie commands inside the running '%s' Docker container.\n\n" "${CONTAINER_NAME}"
+  printf "Options:\n"
+  printf "  --help          Show this wrapper help message and exit\n"
+  printf "  -h              Show Angie binary help from inside the container\n\n"
+  printf "Environment:\n"
+  printf "  CONTAINER_NAME  Target Docker container (default: angie)\n"
+  printf "  TRACE=1         Enable bash execution tracing (set -x)\n"
+}
+
+die() {
+  printf "ERROR: %s\n" "$*" >&2
+  exit 1
+}
+
+check_deps() {
+  if ! command -v docker >/dev/null 2>&1; then
+    die "missing required dependency: docker"
+  fi
+}
+
+main() {
+  case "${1:-}" in
+  --help)
+    usage
+    exit 0
+    ;;
+  *) : ;;
+  esac
+
+  check_deps
+
+  if ! docker inspect -f '{{.State.Running}}' "${CONTAINER_NAME}" 2>/dev/null | grep -q "true"; then
+    die "container '${CONTAINER_NAME}' is not running"
+  fi
+
+  exec docker exec -i "${CONTAINER_NAME}" angie "$@"
+}
+
+if [[ ${BASH_SOURCE[0]} == "${0}" ]]; then
+  main "$@"
+fi
