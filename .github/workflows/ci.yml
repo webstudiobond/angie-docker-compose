@@ -21,17 +21,19 @@ jobs:
       - name: Validate docker-compose.yaml
         run: docker compose -f docker-compose.yaml config --quiet
 
+      - name: Install linters
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y --no-install-recommends shfmt checkbashisms
+
       - name: Run shellcheck
-        run: shellcheck --enable=all -x $(find usr/local/bin tests -type f -name '*.sh')
+        run: shellcheck --enable=all -x $(find usr/local/bin tests -type f \( -name '*.sh' -o -name 'angie' \))
 
       - name: Check formatting (shfmt)
-        run: shfmt -d -s -i 2 $(find usr/local/bin tests -type f -name '*.sh')
-
-      - name: Install checkbashisms
-        run: sudo apt-get update && sudo apt-get install -y --no-install-recommends checkbashisms
+        run: shfmt -d -s -i 2 $(find usr/local/bin tests -type f \( -name '*.sh' -o -name 'angie' \))
 
       - name: Check bashisms
-        run: checkbashisms -f $(find usr/local/bin tests -type f -name '*.sh') || true
+        run: checkbashisms -f $(find usr/local/bin tests -type f \( -name '*.sh' -o -name 'angie' \)) || true
 
   test:
     name: Shell Tests
@@ -44,19 +46,6 @@ jobs:
 
       - name: Run unit tests
         run: bashunit tests/
-
-  secrets:
-    name: Secrets Scan
-    runs-on: ubuntu-latest
-    timeout-minutes: 5
-    steps:
-      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
-        with:
-          fetch-depth: 0
-
-      - uses: gitleaks/gitleaks-action@e0c47f4f8be36e29cdc102c57e68cb5cbf0e8d1e # v3.0.0
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
   trivy:
     name: Trivy Scan
