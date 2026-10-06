@@ -147,6 +147,7 @@ Open `/home/angie/.env` and ensure `APP_UID` and `APP_GID` match the values defi
 
 ```bash
 sudo -u angie nano /home/angie/.env
+sudo chmod 600  /home/angie/.env
 ```
 
 ### 7. Cloudflare IP Automation
@@ -319,15 +320,15 @@ tail -f /home/angie/data/logs/domains/wordpress.log
 ---
 
 <details>
-<summary><strong>Virtual Host Setup (WordPress &amp; Speedybench)</strong></summary>
+<summary><strong>Virtual Host Setup</strong></summary>
 
 ### Virtual Host Configuration
 
-Virtual host configurations are created on demand as needed when deploying sites or services. Initially, `/home/angie/data/conf.d/domains/` remains empty until your first workload is connected.
+Virtual host configurations are created on demand as needed when deploying sites or services. Pre-configured templates are available in [`data/conf.d/domains/`](data/conf.d/domains/), each containing a self-documenting header with all required placeholders.
 
-The sections below serve as practical examples for provisioning virtual hosts for WordPress and Speedybench workloads over the `frontend_gateway` network.
+The guide below demonstrates deploying a WordPress virtual host as an example.
 
-#### 1. WordPress Integration ([wordpress-docker](https://github.com/webstudiobond/wordpress-docker))
+#### WordPress Integration ([wordpress-docker](https://github.com/webstudiobond/wordpress-docker))
 
 Download the WordPress virtual host template directly to your site configuration file:
 
@@ -339,7 +340,7 @@ sudo -u angie curl -fsSL ${REPO}/data/conf.d/domains/wordpress.conf \
   -o /home/angie/data/conf.d/domains/${SITE_USER}.conf
 ```
 
-Substitute the placeholders inside the configuration file using `sed` so upstream requests route to `${SITE_USER}_angie:80` on the `frontend_gateway` network:
+Substitute the placeholders inside the configuration file so upstream requests route to `${SITE_USER}_angie:80` on the `frontend_gateway` network:
 
 ```bash
 DOMAIN="example.com"
@@ -350,54 +351,56 @@ sudo -u angie sed -i \
   /home/angie/data/conf.d/domains/${SITE_USER}.conf
 ```
 
-Review and customize the configuration as needed (e.g. adjust `server_name` or `Conditional Access Logging` rules):
+Review and customize the configuration as needed (e.g., adjust `server_name` or conditional access logging rules):
 
 ```bash
 sudo -u angie nano /home/angie/data/conf.d/domains/${SITE_USER}.conf
 ```
 
-#### 2. Speedybench Integration ([speedybench](https://github.com/underhax/speedybench))
+#### Verification & DNS Cutover
 
-Download the Speedybench virtual host template:
-
-```bash
-REPO="https://raw.githubusercontent.com/webstudiobond/angie-docker-compose/main"
-
-SPEED_SITE="speed"
-sudo -u angie curl -fsSL ${REPO}/data/conf.d/domains/spedybench.conf \
-  -o /home/angie/data/conf.d/domains/${SPEED_SITE}.conf
-```
-
-Substitute the domain name so upstream requests route to `speedybench:8989` on the `frontend_gateway` network:
+1. Test Angie configuration syntax:
 
 ```bash
-SPEED_DOMAIN="speed.example.com"
-
-sudo -u angie sed -i \
-  -e "s|speedybench\.example|${SPEED_DOMAIN}|g" \
-  /home/angie/data/conf.d/domains/${SPEED_SITE}.conf
+sudo angie -t
 ```
 
-#### 3. Pre-Cutover Verification & Reload
+2. Point your domain's public DNS A/AAAA records to the server IP.
 
-Test Angie configuration syntax and reload without dropping connections:
+3. Once DNS propagates, reload Angie to apply changes and issue the TLS certificate:
 
 ```bash
-sudo angie -t && sudo angie -s reload
+sudo angie -s reload
 ```
 
-Before updating public DNS records, verify proxy routing and TLS negotiation locally on the server:
+4. Verify live HTTPS response and TLS handshake:
 
 ```bash
-curl -k -I --resolve example.com:443:127.0.0.1 https://example.com
+curl -I https://example.com
 ```
-
-Once verified, point public DNS A/AAAA records to the server IP. Angie will automatically issue the ACME certificate upon receiving incoming requests.
 
 </details>
 
 ---
 
+<details>
+<summary><strong>Development & Testing</strong></summary>
+
 ## Development & Testing
 
 For local development and testing guidelines, refer to [DEVELOPMENT](DEVELOPMENT.md).
+
+</details>
+
+---
+
+<details>
+<summary><strong>License & Attribution</strong></summary>
+
+## License & Attribution
+
+This repository and deployment architecture are licensed under the [MIT License](LICENSE).
+This project is an independent containerized deployment architecture and is not affiliated with, endorsed, or sponsored by Angie.
+
+**Angie License & Attribution:** All rights to [Angie](https://en.angie.software/) belong to its respective authors and copyright holders. For terms of distribution and use, refer to the official [Angie License](https://en.angie.software/angie/license-angie/).
+</details>
