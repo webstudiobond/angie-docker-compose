@@ -61,7 +61,7 @@ jobs:
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
 
-      - uses: TypedDevs/bashunit@860c797a48e34be20b019a70f58c0e06d15c8d33 # 0.51.0
+      - uses: TypedDevs/bashunit@8d4f357f52df7596f92ece2d6c049d91d45517a2 # 0.52.0
 
       - name: Run unit tests
         run: bashunit tests/

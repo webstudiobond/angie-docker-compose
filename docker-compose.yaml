@@ -13,9 +13,9 @@ services:
       retries: 3
       start_period: 10s
     ports:
-      - "443:443/tcp"
-      - "443:443/udp"
-      - "80:80"
+      - "${HOST_IP:-127.0.0.1}:443:443/tcp"
+      - "${HOST_IP:-127.0.0.1}:443:443/udp"
+      - "${HOST_IP:-127.0.0.1}:80:80"
     volumes:
       - /etc/localtime:/etc/localtime:ro
       - ./data/angie.conf:/etc/angie/angie.conf:ro
@@ -33,7 +33,8 @@ services:
         max-size: "10m"
         max-file: "3"
     networks:
-      - frontend_gateway
+      frontend_gateway:
+        ipv4_address: 172.20.0.254
     read_only: true
     security_opt:
       - no-new-privileges:true

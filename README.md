@@ -19,7 +19,7 @@ Most Docker Compose guides and deployment setups for Angie prioritize rapid init
 
 ## Architecture Highlights
 
-* **Closed-Circuit Multi-Tenant Network:** Provisions and manages the isolated `frontend_gateway` network on subnet `172.20.0.0/16`. Internal tenant containers such as `${SITE_USER}_angie` from `wordpress-docker` and `speedybench` attach to this network with zero exposed host ports.
+* **Closed-Circuit Multi-Tenant Network:** Provisions and manages the isolated `frontend_gateway` network on subnet `172.20.0.0/16` with a dedicated static IP (`172.20.0.254`) for the Edge gateway. Internal tenant containers such as `${SITE_USER}_angie` from `wordpress-docker` and `speedybench` attach to this network with zero exposed host ports and strictly authorize traffic originating from `172.20.0.254`.
 * **Zero-Privilege Security Profile:** Operates under a dedicated unprivileged non-root user with an immutable read-only filesystem, strips all Linux kernel capabilities except binding privileged network ports, prevents privilege escalation, and enforces strict CPU and memory resource limits.
 * **Decoupled Hardened Configuration Suite:** Replaces minimal stock container stubs with fully externalized, read-only host configurations—including extended MIME type mappings, dynamic module declarations, and modular protocol snippets—guaranteeing deterministic edge behavior and total control over runtime settings.
 * **Native In-Process ACME:** Built-in Let's Encrypt certificate issuance and automated renewal directly within Angie using `acme_client`, eliminating separate certbot containers, cron jobs, and external ACME socket mounts.
@@ -143,7 +143,7 @@ sudo -u angie curl -fsSL ${REPO}/.env.example -o /home/angie/.env
 
 ### 6. Configure Environment
 
-Open `/home/angie/.env` and ensure `APP_UID` and `APP_GID` match the values defined in Step 1:
+Open `/home/angie/.env`, verify that `APP_UID` and `APP_GID` match the values defined in Step 1, and set `HOST_IP` to your server's public IPv4 address (defaults to `127.0.0.1` for safe local binding):
 
 ```bash
 sudo -u angie nano /home/angie/.env

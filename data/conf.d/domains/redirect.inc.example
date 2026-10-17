@@ -1,0 +1,24 @@
+# =============================================================================
+# DOMAIN REDIRECT REWRITE RULES EXAMPLE
+# =============================================================================
+# Included inside the HTTPS 'location /' block of 'domain-redirect.conf'.
+# Rules are evaluated sequentially from top to bottom until the first match.
+# =============================================================================
+
+# Redirect www to bare domain
+if ($host ~ ^www\.(?<domain>.+)$) {
+    return 301 $scheme://$domain$request_uri;
+}
+
+# Strip legacy query parameters before redirecting
+if ($request_uri ~ "\?(.*)legacy_param=([^&]*)&?(.*)") {
+    set $args '';
+    rewrite ^/(.*)$ /$1 permanent;
+}
+
+# Migrated pages and categories
+rewrite ^/old-category/legacy-post-slug/$ https://new-domain.example/articles/new-post-slug/ permanent;
+rewrite ^/tag/old-topic/$ https://new-domain.example/topics/new-topic/ permanent;
+
+# Fallback: redirect any other legitimate legacy URL to the new domain root
+rewrite ^ https://new-domain.example/ permanent;
