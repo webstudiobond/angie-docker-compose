@@ -93,17 +93,19 @@ getent passwd ${APP_UID}
 getent group ${APP_GID}
 ```
 
-If neither command produces output, create the system group and user with a disabled login shell:
+If neither command produces output, create the system group and user with a disabled login shell, and configure base directory ownership:
 
 ```bash
 sudo groupadd -g ${APP_GID} angie
 sudo useradd -m -d /home/angie -s /usr/sbin/nologin -u ${APP_UID} -g ${APP_GID} angie
+sudo chown root:angie /home/angie
+sudo chmod 0750 /home/angie
 ```
 
 ### 2. Create Directory Structure
 
 ```bash
-sudo -u angie mkdir -p /home/angie/data/{cache,certs,conf.d/{domains,main},html,logs/domains,ssl}
+sudo mkdir -p /home/angie/data/{cache,certs,conf.d/{domains,main},html,logs/domains,ssl}
 ```
 
 ### 3. Generate Diffie-Hellman Parameters (DHParam)
@@ -112,8 +114,8 @@ Generate custom 2048-bit Diffie-Hellman parameters and set strict owner-only per
 
 ```bash
 sudo openssl dhparam -out /home/angie/data/ssl/dhparam.pem 2048
-sudo chown angie:angie /home/angie/data/ssl/dhparam.pem
-sudo chmod 400 /home/angie/data/ssl/dhparam.pem
+sudo chown root:angie /home/angie/data/ssl/dhparam.pem
+sudo chmod 0440 /home/angie/data/ssl/dhparam.pem
 ```
 
 ### 4. Download Configuration Files
@@ -123,22 +125,24 @@ Download the complete set of configuration files and conf.d snippets from the re
 ```bash
 REPO="https://raw.githubusercontent.com/webstudiobond/angie-docker-compose/main"
 
-sudo -u angie curl -fsSL ${REPO}/data/angie.conf -o /home/angie/data/angie.conf
-sudo -u angie curl -fsSL ${REPO}/data/mime.types -o /home/angie/data/mime.types
-sudo -u angie curl -fsSL ${REPO}/data/modules.conf -o /home/angie/data/modules.conf
+sudo curl -fsSL ${REPO}/data/angie.conf -o /home/angie/data/angie.conf
+sudo curl -fsSL ${REPO}/data/mime.types -o /home/angie/data/mime.types
+sudo curl -fsSL ${REPO}/data/modules.conf -o /home/angie/data/modules.conf
 
-sudo -u angie curl -fsSL ${REPO}/data/conf.d/0rtt-anti-replay.conf -o /home/angie/data/conf.d/0rtt-anti-replay.conf
-sudo -u angie curl -fsSL ${REPO}/data/conf.d/error-pages.inc -o /home/angie/data/conf.d/error-pages.inc
-sudo -u angie curl -fsSL ${REPO}/data/conf.d/healthcheck.inc -o /home/angie/data/conf.d/healthcheck.inc
-sudo -u angie curl -fsSL ${REPO}/data/conf.d/http-protocols.conf -o /home/angie/data/conf.d/http-protocols.conf
-sudo -u angie curl -fsSL ${REPO}/data/conf.d/security-headers.inc -o /home/angie/data/conf.d/security-headers.inc
+sudo curl -fsSL ${REPO}/data/conf.d/0rtt-anti-replay.conf -o /home/angie/data/conf.d/0rtt-anti-replay.conf
+sudo curl -fsSL ${REPO}/data/conf.d/error-pages.inc -o /home/angie/data/conf.d/error-pages.inc
+sudo curl -fsSL ${REPO}/data/conf.d/healthcheck.inc -o /home/angie/data/conf.d/healthcheck.inc
+sudo curl -fsSL ${REPO}/data/conf.d/http-protocols.conf -o /home/angie/data/conf.d/http-protocols.conf
+sudo curl -fsSL ${REPO}/data/conf.d/security-headers.inc -o /home/angie/data/conf.d/security-headers.inc
 ```
 
 ### 5. Download Compose Manifest and Environment Config
 
 ```bash
-sudo -u angie curl -fsSL ${REPO}/docker-compose.yaml -o /home/angie/docker-compose.yaml
-sudo -u angie curl -fsSL ${REPO}/.env.example -o /home/angie/.env
+sudo curl -fsSL ${REPO}/docker-compose.yaml -o /home/angie/docker-compose.yaml
+sudo curl -fsSL ${REPO}/.env.example -o /home/angie/.env
+sudo chown root:root /home/angie/{docker-compose.yaml,.env}
+sudo chmod 0600 /home/angie/{docker-compose.yaml,.env}
 ```
 
 ### 6. Configure Environment
@@ -146,8 +150,9 @@ sudo -u angie curl -fsSL ${REPO}/.env.example -o /home/angie/.env
 Open `/home/angie/.env`, verify that `APP_UID` and `APP_GID` match the values defined in Step 1, and set `HOST_IP` to your server's public IPv4 address (defaults to `127.0.0.1` for safe local binding):
 
 ```bash
-sudo -u angie nano /home/angie/.env
-sudo chmod 600  /home/angie/.env
+sudo nano /home/angie/.env
+sudo chown root:root /home/angie/.env
+sudo chmod 0600 /home/angie/.env
 ```
 
 ### 7. Cloudflare IP Automation
@@ -160,7 +165,8 @@ Download the update script and install it with execution permissions:
 REPO="https://raw.githubusercontent.com/webstudiobond/angie-docker-compose/main"
 
 sudo curl -fsSL ${REPO}/usr/local/bin/update-cf-ips.sh -o /usr/local/bin/update-cf-ips.sh
-sudo chmod 500 /usr/local/bin/update-cf-ips.sh
+sudo chown root:root /usr/local/bin/update-cf-ips.sh
+sudo chmod 0500 /usr/local/bin/update-cf-ips.sh
 ```
 
 Execute the script to verify IP download, syntax checking, and Angie container reloading:
@@ -173,10 +179,73 @@ Install and activate the weekly automated cron job:
 
 ```bash
 sudo curl -fsSL ${REPO}/etc/cron.d/update-cf-ips -o /etc/cron.d/update-cf-ips
-sudo chmod 400 /etc/cron.d/update-cf-ips
+sudo chown root:root /etc/cron.d/update-cf-ips
+sudo chmod 0400 /etc/cron.d/update-cf-ips
 ```
 
-### 8. Start the Stack
+### 8. Host Permissions & Privilege Separation
+
+Keep deployment inputs, server configurations, and system scripts outside the service account's write access. The container runs with numeric `APP_UID:APP_GID` (`angie:angie`, typically `2001:2001`) and requires write access strictly to runtime storage directories (`cache/`, `certs/`, and `logs/`). Under this model, a compromised Angie edge process cannot modify server configurations, overwrite virtual hosts, or manipulate Docker manifests.
+
+All server configurations and snippets are owned by `root:angie` with read-only permissions (`0640` for files, `0750` for directories). Runtime caches and ACME TLS certificate keys are isolated to `angie:angie` with owner-only access (`0700` for directories, `0600` for files).
+
+Runtime log storage (`logs/`, `logs/domains/`) is owned by `angie:angie` with `0750` for directories and `0640` for files. Host security and intrusion detection systems (such as **CrowdSec**) and log rotation daemons operate with root or service privileges, seamlessly reading logs without exposing them to other unprivileged host users.
+
+| Host path | Owner | Mode | Reason |
+| --- | --- | --- | --- |
+| `/home/angie`, `/home/angie/data` | `root:angie` | `0750` | Base directories; allows service traversal without access for other users |
+| `docker-compose.yaml`, `.env` | `root:root` | `0600` | Host-only manifests and environment settings |
+| `data/angie.conf`, `mime.types`, `modules.conf` | `root:angie` | `0640` | Read-only server configuration and dynamic module includes |
+| `data/conf.d/` and subdirectories | `root:angie` | `0750` | Read-only configuration snippets and virtual hosts |
+| `data/conf.d/*` files | `root:angie` | `0640` | Read-only configuration directives |
+| `data/ssl/` directory | `root:angie` | `0750` | Read-only SSL configuration directory |
+| `data/ssl/dhparam.pem` | `root:angie` | `0440` | Read-only Diffie-Hellman parameters |
+| `data/html/` directory and files | `root:angie` | `0750` / `0640` | Read-only static maintenance and error assets |
+| `data/certs/` and subdirectories | `angie:angie` | `0700` | Private ACME Let's Encrypt certificates and account keys |
+| `data/certs/*` files | `angie:angie` | `0600` | Private ACME certificates and private keys |
+| `data/cache/` and subdirectories | `angie:angie` | `0700` | Private proxy cache storage |
+| `data/cache/*` files | `angie:angie` | `0600` | Private proxy cache storage files |
+| `data/logs/`, `data/logs/domains/` | `angie:angie` | `0750` | Writable log storage and per-domain log directory |
+| `data/logs/*.log`, `data/logs/domains/*.log` | `angie:angie` | `0640` | Server and virtual host access/error logs |
+| `/usr/local/bin/angie` (optional) | `root:root` | `0500` | Optional host CLI wrapper script (Method 1) |
+| `/usr/local/bin/update-cf-ips.sh` | `root:root` | `0500` | Cloudflare IP fetch and container reload script |
+| `/etc/cron.d/update-cf-ips` | `root:root` | `0400` | System cron configuration for weekly IP updater |
+| `/etc/logrotate.d/angie` | `root:root` | `0400` | System logrotate configuration |
+
+#### Apply or restore host permissions
+
+Run as a host administrator after creating files and after any configuration or snippet update:
+
+```bash
+sudo chown root:angie /home/angie /home/angie/data
+sudo chmod 0750 /home/angie /home/angie/data
+
+sudo chown root:root /home/angie/docker-compose.yaml /home/angie/.env
+sudo chmod 0600 /home/angie/docker-compose.yaml /home/angie/.env
+
+sudo chown root:angie /home/angie/data/{angie.conf,mime.types,modules.conf}
+sudo chmod 0640 /home/angie/data/{angie.conf,mime.types,modules.conf}
+
+sudo chown -R root:angie /home/angie/data/{conf.d,html,ssl}
+sudo find /home/angie/data/{conf.d,html,ssl} -type d -exec chmod 0750 {} +
+sudo find /home/angie/data/{conf.d,html} -type f -exec chmod 0640 {} +
+[ -f /home/angie/data/ssl/dhparam.pem ] && sudo chmod 0440 /home/angie/data/ssl/dhparam.pem
+
+sudo chown -R angie:angie /home/angie/data/{cache,certs}
+sudo find /home/angie/data/{cache,certs} -type d -exec chmod 0700 {} +
+sudo find /home/angie/data/{cache,certs} -type f -exec chmod 0600 {} +
+
+sudo chown -R angie:angie /home/angie/data/logs
+sudo find /home/angie/data/logs -type d -exec chmod 0750 {} +
+sudo find /home/angie/data/logs -type f -exec chmod 0640 {} +
+
+[ -f /usr/local/bin/angie ] && sudo chown root:root /usr/local/bin/angie && sudo chmod 0500 /usr/local/bin/angie
+[ -f /usr/local/bin/update-cf-ips.sh ] && sudo chown root:root /usr/local/bin/update-cf-ips.sh && sudo chmod 0500 /usr/local/bin/update-cf-ips.sh
+[ -f /etc/cron.d/update-cf-ips ] && sudo chown root:root /etc/cron.d/update-cf-ips && sudo chmod 0400 /etc/cron.d/update-cf-ips
+[ -f /etc/logrotate.d/angie ] && sudo chown root:root /etc/logrotate.d/angie && sudo chmod 0400 /etc/logrotate.d/angie
+```
+
+### 9. Start the Stack
 
 Pull images and start the container:
 
@@ -222,6 +291,8 @@ Download the Angie logrotate configuration:
 REPO="https://raw.githubusercontent.com/webstudiobond/angie-docker-compose/main"
 
 sudo curl -fsSL ${REPO}/etc/logrotate.d/angie -o /etc/logrotate.d/angie
+sudo chown root:root /etc/logrotate.d/angie
+sudo chmod 0400 /etc/logrotate.d/angie
 ```
 
 Verify the logrotate configuration syntax in debug mode:
@@ -264,7 +335,8 @@ Install the Angie container CLI wrapper script to `/usr/local/bin/angie` and set
 REPO="https://raw.githubusercontent.com/webstudiobond/angie-docker-compose/main"
 
 sudo curl -fsSL ${REPO}/usr/local/bin/angie -o /usr/local/bin/angie
-sudo chmod 500 /usr/local/bin/angie
+sudo chown root:root /usr/local/bin/angie
+sudo chmod 0500 /usr/local/bin/angie
 ```
 
 Test configuration syntax and reload Angie gracefully without dropping connections:
@@ -336,8 +408,10 @@ Download the WordPress virtual host template directly to your site configuration
 REPO="https://raw.githubusercontent.com/webstudiobond/angie-docker-compose/main"
 
 SITE_USER="mywpsite"
-sudo -u angie curl -fsSL ${REPO}/data/conf.d/domains/wordpress.conf \
+sudo curl -fsSL ${REPO}/data/conf.d/domains/wordpress.conf \
   -o /home/angie/data/conf.d/domains/${SITE_USER}.conf
+sudo chown root:angie /home/angie/data/conf.d/domains/${SITE_USER}.conf
+sudo chmod 0640 /home/angie/data/conf.d/domains/${SITE_USER}.conf
 ```
 
 Substitute the placeholders inside the configuration file so upstream requests route to `${SITE_USER}_angie:80` on the `frontend_gateway` network:
@@ -345,7 +419,7 @@ Substitute the placeholders inside the configuration file so upstream requests r
 ```bash
 DOMAIN="example.com"
 
-sudo -u angie sed -i \
+sudo sed -i \
   -e "s|wordpress\.example|${DOMAIN}|g" \
   -e "s|mysite|${SITE_USER}|g" \
   /home/angie/data/conf.d/domains/${SITE_USER}.conf
@@ -354,7 +428,7 @@ sudo -u angie sed -i \
 Review and customize the configuration as needed (e.g., adjust `server_name` or conditional access logging rules):
 
 ```bash
-sudo -u angie nano /home/angie/data/conf.d/domains/${SITE_USER}.conf
+sudo nano /home/angie/data/conf.d/domains/${SITE_USER}.conf
 ```
 
 #### Verification & DNS Cutover
