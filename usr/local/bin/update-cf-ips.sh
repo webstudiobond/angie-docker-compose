@@ -7,7 +7,7 @@ PATH="${PATH}:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin"
 export PATH
 
 : "${CF_FILE:=/home/angie/data/conf.d/cloudflare-ips.inc}"
-: "${OWNER:=angie:angie}"
+: "${OWNER:=root:angie}"
 : "${CONTAINER_NAME:=angie}"
 : "${LOCK_FILE:=/var/lock/update-cf-ips.lock}"
 : "${CF_IPV4_URL:=https://www.cloudflare.com/ips-v4}"
@@ -77,7 +77,7 @@ fetch_and_write() {
     die "downloaded data seems invalid or incomplete (lines: ${line_count})"
   fi
 
-  chmod 600 "${TMP_FILE}" || die "failed to set permissions"
+  chmod 0640 "${TMP_FILE}" || die "failed to set permissions"
   chown "${OWNER}" "${TMP_FILE}" || die "failed to set ownership"
   mv "${TMP_FILE}" "${CF_FILE}" || die "failed to move config file to destination"
   TMP_FILE=""

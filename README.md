@@ -187,7 +187,7 @@ sudo chmod 0400 /etc/cron.d/update-cf-ips
 
 Keep deployment inputs, server configurations, and system scripts outside the service account's write access. The container runs with numeric `APP_UID:APP_GID` (`angie:angie`, typically `2001:2001`) and requires write access strictly to runtime storage directories (`cache/`, `certs/`, and `logs/`). Under this model, a compromised Angie edge process cannot modify server configurations, overwrite virtual hosts, or manipulate Docker manifests.
 
-All server configurations and snippets are owned by `root:angie` with read-only permissions (`0640` for files, `0750` for directories). Runtime caches and ACME TLS certificate keys are isolated to `angie:angie` with owner-only access (`0700` for directories, `0600` for files).
+All server configurations and snippets are owned by `root:angie` with read-only permissions (`0440` for configuration files, snippets, and domain virtual hosts, `0640` for the dynamically generated Cloudflare IP list, `0750` for directories). Runtime caches and ACME TLS certificate keys are isolated to `angie:angie` with owner-only access (`0700` for directories, `0600` for files).
 
 Runtime log storage (`logs/`, `logs/domains/`) is owned by `angie:angie` with `0750` for directories and `0640` for files. Host security and intrusion detection systems (such as **CrowdSec**) and log rotation daemons operate with root or service privileges, seamlessly reading logs without exposing them to other unprivileged host users.
 
@@ -195,12 +195,14 @@ Runtime log storage (`logs/`, `logs/domains/`) is owned by `angie:angie` with `0
 | --- | --- | --- | --- |
 | `/home/angie`, `/home/angie/data` | `root:angie` | `0750` | Base directories; allows service traversal without access for other users |
 | `docker-compose.yaml`, `.env` | `root:root` | `0600` | Host-only manifests and environment settings |
-| `data/angie.conf`, `mime.types`, `modules.conf` | `root:angie` | `0640` | Read-only server configuration and dynamic module includes |
+| `data/angie.conf`, `mime.types`, `modules.conf` | `root:angie` | `0440` | Read-only server configuration and dynamic module includes |
 | `data/conf.d/` and subdirectories | `root:angie` | `0750` | Read-only configuration snippets and virtual hosts |
-| `data/conf.d/*` files | `root:angie` | `0640` | Read-only configuration directives |
+| `data/conf.d/*` files (snippets) | `root:angie` | `0440` | Strictly read-only configuration directives and snippets |
+| `data/conf.d/domains/*.conf` | `root:angie` | `0440` | Strictly read-only domain virtual host configurations |
+| `data/conf.d/cloudflare-ips.inc` | `root:angie` | `0640` | Dynamically updated Cloudflare IP include file |
 | `data/ssl/` directory | `root:angie` | `0750` | Read-only SSL configuration directory |
 | `data/ssl/dhparam.pem` | `root:angie` | `0440` | Read-only Diffie-Hellman parameters |
-| `data/html/` directory and files | `root:angie` | `0750` / `0640` | Read-only static maintenance and error assets |
+| `data/html/` directory and files | `root:angie` | `0750` / `0440` | Read-only static maintenance and error assets |
 | `data/certs/` and subdirectories | `angie:angie` | `0700` | Private ACME Let's Encrypt certificates and account keys |
 | `data/certs/*` files | `angie:angie` | `0600` | Private ACME certificates and private keys |
 | `data/cache/` and subdirectories | `angie:angie` | `0700` | Private proxy cache storage |
@@ -224,11 +226,12 @@ sudo chown root:root /home/angie/docker-compose.yaml /home/angie/.env
 sudo chmod 0600 /home/angie/docker-compose.yaml /home/angie/.env
 
 sudo chown root:angie /home/angie/data/{angie.conf,mime.types,modules.conf}
-sudo chmod 0640 /home/angie/data/{angie.conf,mime.types,modules.conf}
+sudo chmod 0440 /home/angie/data/{angie.conf,mime.types,modules.conf}
 
 sudo chown -R root:angie /home/angie/data/{conf.d,html,ssl}
 sudo find /home/angie/data/{conf.d,html,ssl} -type d -exec chmod 0750 {} +
-sudo find /home/angie/data/{conf.d,html} -type f -exec chmod 0640 {} +
+sudo find /home/angie/data/{conf.d,html} -type f -exec chmod 0440 {} +
+[ -f /home/angie/data/conf.d/cloudflare-ips.inc ] && sudo chmod 0640 /home/angie/data/conf.d/cloudflare-ips.inc
 [ -f /home/angie/data/ssl/dhparam.pem ] && sudo chmod 0440 /home/angie/data/ssl/dhparam.pem
 
 sudo chown -R angie:angie /home/angie/data/{cache,certs}
@@ -411,7 +414,7 @@ SITE_USER="mywpsite"
 sudo curl -fsSL ${REPO}/data/conf.d/domains/wordpress.conf \
   -o /home/angie/data/conf.d/domains/${SITE_USER}.conf
 sudo chown root:angie /home/angie/data/conf.d/domains/${SITE_USER}.conf
-sudo chmod 0640 /home/angie/data/conf.d/domains/${SITE_USER}.conf
+sudo chmod 0440 /home/angie/data/conf.d/domains/${SITE_USER}.conf
 ```
 
 Substitute the placeholders inside the configuration file so upstream requests route to `${SITE_USER}_angie:80` on the `frontend_gateway` network:
