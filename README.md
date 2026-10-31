@@ -461,6 +461,90 @@ curl -I https://example.com
 ---
 
 <details>
+<summary><strong>Authelia SSO Integration (Optional)</strong></summary>
+
+### Authelia SSO Integration
+
+When securing internal application routes (such as administrative panels or private subdirectories) using [authelia-docker](https://github.com/underhax/authelia-docker), download the Authelia configuration snippets and activate forward authentication within your virtual host.
+
+This configuration is designed specifically to serve Authelia under a subpath (default `/authelia`) on the same domain without requiring a dedicated subdomain.
+
+To customize the subpath (for example, to `/sso`):
+1. **Authelia (`configuration.yml`):**
+   ```yaml
+   server:
+     address: 'tcp://:9091/sso'
+   ```
+2. **Angie (`/etc/angie/conf.d/authelia-public-ui.inc`):**
+   Update the location path and upstream target:
+   ```nginx
+   location ^~ /sso {
+       proxy_pass http://authelia_backend/sso;
+       ...
+   ```
+
+#### 1. Download Authelia Snippets
+
+Download the upstream configuration and auth-request helper snippets from the repository:
+
+```bash
+REPO="https://raw.githubusercontent.com/webstudiobond/angie-docker-compose/main"
+
+sudo curl -fsSL ${REPO}/data/conf.d/authelia-upstream.conf -o /home/angie/data/conf.d/authelia-upstream.conf
+sudo curl -fsSL ${REPO}/data/conf.d/authelia-internal-verify.inc -o /home/angie/data/conf.d/authelia-internal-verify.inc
+sudo curl -fsSL ${REPO}/data/conf.d/authelia-public-ui.inc -o /home/angie/data/conf.d/authelia-public-ui.inc
+sudo curl -fsSL ${REPO}/data/conf.d/authelia-protect.inc -o /home/angie/data/conf.d/authelia-protect.inc
+sudo curl -fsSL ${REPO}/data/conf.d/authelia-user-claims.inc -o /home/angie/data/conf.d/authelia-user-claims.inc
+
+sudo chown root:angie /home/angie/data/conf.d/authelia-upstream.conf \
+  /home/angie/data/conf.d/authelia-internal-verify.inc \
+  /home/angie/data/conf.d/authelia-public-ui.inc \
+  /home/angie/data/conf.d/authelia-protect.inc \
+  /home/angie/data/conf.d/authelia-user-claims.inc
+
+sudo chmod 0440 /home/angie/data/conf.d/authelia-upstream.conf \
+  /home/angie/data/conf.d/authelia-internal-verify.inc \
+  /home/angie/data/conf.d/authelia-public-ui.inc \
+  /home/angie/data/conf.d/authelia-protect.inc \
+  /home/angie/data/conf.d/authelia-user-claims.inc
+```
+
+#### 2. Enable Authelia in Virtual Host
+
+In your domain virtual host configuration (for example, `/home/angie/data/conf.d/domains/couchdb.conf`), uncomment the Authelia directives:
+
+Inside the `server` block:
+
+```nginx
+include /etc/angie/conf.d/authelia-internal-verify.inc;
+include /etc/angie/conf.d/authelia-public-ui.inc;
+```
+
+Inside any `location` block requiring perimeter protection (e.g., administrative interfaces):
+
+```nginx
+include /etc/angie/conf.d/authelia-protect.inc;
+```
+
+Optionally, if the backend service supports ForwardAuth / HTTP header authentication (such as CouchDB proxy auth):
+
+```nginx
+include /etc/angie/conf.d/authelia-user-claims.inc;
+```
+
+> **Important:** `authelia-user-claims.inc` must only be included inside a `location` block alongside `authelia-protect.inc` (never at the `server` level). Because Nginx/Angie disables parent `proxy_set_header` inheritance when any header directive is declared in a location, if your virtual host defines base proxy headers (`Host`, `X-Real-IP`, `X-Forwarded-*`) at the `server` level, you must move or declare those base proxy headers directly inside the target `location` block.
+
+#### 3. Test and Reload Angie
+
+```bash
+angie -t && angie -s reload
+```
+
+</details>
+
+---
+
+<details>
 <summary><strong>Development & Testing</strong></summary>
 
 ## Development & Testing

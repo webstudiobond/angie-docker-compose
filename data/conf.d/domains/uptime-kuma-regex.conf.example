@@ -1,15 +1,8 @@
-# =============================================================================
-# UPTIME KUMA VIRTUAL HOST TEMPLATE (REGEX SUBS_FILTER)
-# =============================================================================
-# Hosts Uptime Kuma under '/uptime-kuma/' using regex-based path replacement.
-# Requires 'ngx_http_subs_filter_module.so' loaded in modules.conf.
-#
-# Deployment:
-#   - Replace 'uptime-regex.example' with your actual domain name.
-#   - Replace 'uptime_kuma_regex' with a unique ACME identifier.
-#   - Replace 'uptime_kuma_backend' with a unique upstream pool name.
-#   - To embed into an existing virtual host, copy the upstream and locations.
-# =============================================================================
+# Deployment checklist:
+# - Replace 'uptime-regex.example' with your target domain.
+# - Replace 'uptime_kuma_regex' with a unique ACME identifier.
+# - Replace 'uptime_kuma_backend' with a unique upstream pool name.
+# - To embed into an existing virtual host, copy the upstream and locations.
 
 upstream uptime_kuma_backend {
     zone uptime_kuma_backend 64k;

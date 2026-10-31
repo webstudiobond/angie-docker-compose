@@ -1,9 +1,6 @@
-# =============================================================================
-# DOMAIN REDIRECT REWRITE RULES EXAMPLE
-# =============================================================================
-# Included inside the HTTPS 'location /' block of 'domain-redirect.conf'.
-# Rules are evaluated sequentially from top to bottom until the first match.
-# =============================================================================
+# Deployment checklist:
+# - Included inside the HTTPS 'location /' block of 'domain-redirect.conf'.
+# - Rules are evaluated sequentially from top to bottom until the first match.
 
 # Redirect www to bare domain
 if ($host ~ ^www\.(?<domain>.+)$) {
