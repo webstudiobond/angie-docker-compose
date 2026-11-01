@@ -83,22 +83,28 @@ Most Docker Compose guides and deployment setups for Angie prioritize rapid init
 
 ### 1. Create a Dedicated System User
 
-Define the desired UID and GID (defaulting to `2001`, or customize as needed for your system) and verify they are not already allocated on the host:
+Choose a dedicated, unprivileged numeric ID unique to this service on your host and verify that it is not in use:
 
 ```bash
-APP_UID=2001
-APP_GID=2001
+APP_UID=<CHOSEN_UID>
 
 getent passwd ${APP_UID}
-getent group ${APP_GID}
+getent group ${APP_UID}
 ```
 
 If neither command produces output, create the system group and user with a disabled login shell, and configure base directory ownership:
 
+Create an unprivileged system account with a matching user-group (`-U`) and disabled login shell:
+
 ```bash
-sudo groupadd -g ${APP_GID} angie
-sudo useradd -m -d /home/angie -s /usr/sbin/nologin -u ${APP_UID} -g ${APP_GID} angie
-sudo chown root:angie /home/angie
+sudo useradd -M -d /home/angie -s /usr/sbin/nologin -u ${APP_UID} -U angie
+```
+
+Create the base directory and assign ownership:
+
+```bash
+sudo mkdir -p /home/angie
+sudo chown root:authelia /home/angie
 sudo chmod 0750 /home/angie
 ```
 
@@ -106,6 +112,10 @@ sudo chmod 0750 /home/angie
 
 ```bash
 sudo mkdir -p /home/angie/data/{cache,certs,conf.d/{domains,main},html,logs/domains,ssl}
+sudo chown -R root:angie /home/angie/data/{conf.d,html,ssl}
+sudo find /home/angie/data/{conf.d,html,ssl} -type d -exec chmod 0750 {} +
+sudo chown -R angie:angie /home/angie/data/{cache,certs,logs}
+sudo find /home/angie/data/{cache,certs,logs} -type d -exec chmod 0700 {} +
 ```
 
 ### 3. Generate Diffie-Hellman Parameters (DHParam)
@@ -147,12 +157,15 @@ sudo chmod 0600 /home/angie/{docker-compose.yaml,.env}
 
 ### 6. Configure Environment
 
-Open `/home/angie/.env`, verify that `APP_UID` and `APP_GID` match the values defined in Step 1, and set `HOST_IP` to your server's public IPv4 address (defaults to `127.0.0.1` for safe local binding):
+```bash
+sed -i "s/^APP_UID=.*/APP_UID=${APP_UID}/" /home/angie/.env
+sed -i "s/^APP_GID=.*/APP_GID=${APP_UID}/" /home/angie/.env
+```
+
+Open `/home/angie/.env`, set `HOST_IP` to your server's public IPv4 address (defaults to `127.0.0.1` for safe local binding):
 
 ```bash
 sudo nano /home/angie/.env
-sudo chown root:root /home/angie/.env
-sudo chmod 0600 /home/angie/.env
 ```
 
 ### 7. Cloudflare IP Automation
@@ -234,13 +247,9 @@ sudo find /home/angie/data/{conf.d,html} -type f -exec chmod 0440 {} +
 [ -f /home/angie/data/conf.d/cloudflare-ips.inc ] && sudo chmod 0640 /home/angie/data/conf.d/cloudflare-ips.inc
 [ -f /home/angie/data/ssl/dhparam.pem ] && sudo chmod 0440 /home/angie/data/ssl/dhparam.pem
 
-sudo chown -R angie:angie /home/angie/data/{cache,certs}
-sudo find /home/angie/data/{cache,certs} -type d -exec chmod 0700 {} +
-sudo find /home/angie/data/{cache,certs} -type f -exec chmod 0600 {} +
-
-sudo chown -R angie:angie /home/angie/data/logs
-sudo find /home/angie/data/logs -type d -exec chmod 0750 {} +
-sudo find /home/angie/data/logs -type f -exec chmod 0640 {} +
+sudo chown -R angie:angie /home/angie/data/{cache,certs,logs}
+sudo find /home/angie/data/{cache,certs,logs} -type d -exec chmod 0700 {} +
+sudo find /home/angie/data/{cache,certs,logs} -type f -exec chmod 0600 {} +
 
 [ -f /usr/local/bin/angie ] && sudo chown root:root /usr/local/bin/angie && sudo chmod 0500 /usr/local/bin/angie
 [ -f /usr/local/bin/update-cf-ips.sh ] && sudo chown root:root /usr/local/bin/update-cf-ips.sh && sudo chmod 0500 /usr/local/bin/update-cf-ips.sh
@@ -492,18 +501,21 @@ REPO="https://raw.githubusercontent.com/webstudiobond/angie-docker-compose/main"
 
 sudo curl -fsSL ${REPO}/data/conf.d/authelia-upstream.conf -o /home/angie/data/conf.d/authelia-upstream.conf
 sudo curl -fsSL ${REPO}/data/conf.d/authelia-internal-verify.inc -o /home/angie/data/conf.d/authelia-internal-verify.inc
+sudo curl -fsSL ${REPO}/data/conf.d/authelia-internal-verify-basic-auth.inc -o /home/angie/data/conf.d/authelia-internal-verify-basic-auth.inc
 sudo curl -fsSL ${REPO}/data/conf.d/authelia-public-ui.inc -o /home/angie/data/conf.d/authelia-public-ui.inc
 sudo curl -fsSL ${REPO}/data/conf.d/authelia-protect.inc -o /home/angie/data/conf.d/authelia-protect.inc
 sudo curl -fsSL ${REPO}/data/conf.d/authelia-user-claims.inc -o /home/angie/data/conf.d/authelia-user-claims.inc
 
 sudo chown root:angie /home/angie/data/conf.d/authelia-upstream.conf \
   /home/angie/data/conf.d/authelia-internal-verify.inc \
+  /home/angie/data/conf.d/authelia-internal-verify-basic-auth.inc \
   /home/angie/data/conf.d/authelia-public-ui.inc \
   /home/angie/data/conf.d/authelia-protect.inc \
   /home/angie/data/conf.d/authelia-user-claims.inc
 
 sudo chmod 0440 /home/angie/data/conf.d/authelia-upstream.conf \
   /home/angie/data/conf.d/authelia-internal-verify.inc \
+  /home/angie/data/conf.d/authelia-internal-verify-basic-auth.inc \
   /home/angie/data/conf.d/authelia-public-ui.inc \
   /home/angie/data/conf.d/authelia-protect.inc \
   /home/angie/data/conf.d/authelia-user-claims.inc
@@ -511,12 +523,22 @@ sudo chmod 0440 /home/angie/data/conf.d/authelia-upstream.conf \
 
 #### 2. Enable Authelia in Virtual Host
 
-In your domain virtual host configuration (for example, `/home/angie/data/conf.d/domains/couchdb.conf`), uncomment the Authelia directives:
+In your domain virtual host configuration (for example, `/home/angie/data/conf.d/domains/couchdb.conf`), choose the verification snippet matching your authentication model:
 
-Inside the `server` block:
+* **Cookie-Only Verification (`authelia-internal-verify.inc`):** Default for web applications and services managing their own internal Basic Auth, bearer tokens, or API keys. Clears the `Authorization` header prior to querying Authelia, verifying requests solely via browser session cookies and preventing collisions with backend passwords.
+* **Basic Auth Forwarding (`authelia-internal-verify-basic-auth.inc`):** For services accessed by native mobile applications or API clients that authenticate directly against Authelia using HTTP Basic Auth credentials. Forwards incoming credentials to Authelia's `HeaderAuthorization` strategy.
+
+Inside the `server` block (Option A — Cookie-only verification):
 
 ```nginx
 include /etc/angie/conf.d/authelia-internal-verify.inc;
+include /etc/angie/conf.d/authelia-public-ui.inc;
+```
+
+Inside the `server` block (Option B — Basic Auth forwarding verification):
+
+```nginx
+include /etc/angie/conf.d/authelia-internal-verify-basic-auth.inc;
 include /etc/angie/conf.d/authelia-public-ui.inc;
 ```
 
