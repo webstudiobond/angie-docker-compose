@@ -16,6 +16,7 @@ services:
       - "${HOST_IP:-127.0.0.1}:443:443/tcp"
       - "${HOST_IP:-127.0.0.1}:443:443/udp"
       - "${HOST_IP:-127.0.0.1}:80:80"
+      # - "${HOST_IP:-127.0.0.1}:5349:5349/tcp" # LiveKit TURN/TLS (uncomment with conf.d/stream.inc)
     volumes:
       - /etc/localtime:/etc/localtime:ro
       - ./data/angie.conf:/etc/angie/angie.conf:ro
@@ -51,7 +52,7 @@ services:
           cpus: '2.0'
           memory: 1G
     mem_reservation: 256M
-    user: "${APP_UID:-2001}:${APP_GID:-2001}"
+    user: "${APP_UID}:${APP_GID}"
 
 networks:
   frontend_gateway:

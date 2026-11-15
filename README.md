@@ -104,7 +104,7 @@ Create the base directory and assign ownership:
 
 ```bash
 sudo mkdir -p /home/angie
-sudo chown root:authelia /home/angie
+sudo chown root:angie /home/angie
 sudo chmod 0750 /home/angie
 ```
 
