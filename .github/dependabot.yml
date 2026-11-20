@@ -21,3 +21,6 @@ updates:
       interval: "weekly"
     commit-message:
       prefix: "docker"
+    ignore:
+      - dependency-name: "angie"
+      - dependency-name: "docker.angie.software/*"

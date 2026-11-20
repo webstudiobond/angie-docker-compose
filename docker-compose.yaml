@@ -2,7 +2,7 @@ name: angie
 
 services:
   angie:
-    image: ghcr.io/webstudiobond/angie:latest
+    image: ghcr.io/webstudiobond/angie:${ANGIE_VERSION:-latest}
     container_name: angie
     hostname: angie
     restart: always

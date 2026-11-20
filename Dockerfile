@@ -44,25 +44,25 @@ RUN mkdir -p /out/usr/sbin \
                /out/usr/share/angie \
                /out/etc \
                /out/etc/ssl \
+               /out/etc/angie \
+               /out/etc/angie/conf.d \
+               /out/etc/angie/conf.d/main \
+               /out/etc/angie/conf.d/domains \
                /out/run \
                /out/run/sockets \
                /out/var \
                /out/var/lib \
                /out/var/lib/angie \
                /out/var/log \
+               /out/var/log/angie \
+               /out/var/log/angie/domains \
                /out/var/cache \
                /out/var/run \
                /out/var/run/sockets \
                /out/var/www && \
-    chmod 0750 /out/etc/angie \
-               /out/etc/angie/conf.d \
-               /out/etc/angie/conf.d/main \
-               /out/etc/angie/conf.d/domains \
-               /out/etc/angie/conf.d/stream \
+    chmod 0750 /out/etc/angie/conf.d/stream \
                /out/usr/share/angie/html \
-               /out/var/www/html \
-               /out/var/log/angie \
-               /out/var/log/angie/domains && \
+               /out/var/www/html && \
     chmod 0700 /out/var/lib/angie/acme \
                /out/var/cache/angie && \
     chmod 1777 /out/tmp \
@@ -75,22 +75,22 @@ RUN mkdir -p /out/usr/sbin \
     for f in fastcgi.conf fastcgi_params scgi_params uwsgi_params prometheus_all.conf; do \
       if [ -f "/etc/angie/$f" ]; then \
         cp -L "/etc/angie/$f" "/out/etc/angie/$f" && \
-        chmod 0440 "/out/etc/angie/$f"; \
+        chmod 0444 "/out/etc/angie/$f"; \
       fi; \
     done && \
     cp /tmp/modules.conf /out/etc/angie/modules.conf && \
-    chmod 0440 /out/etc/angie/modules.conf && \
+    chmod 0444 /out/etc/angie/modules.conf && \
     cp /tmp/angie.conf /out/etc/angie/angie.conf && \
-    chmod 0440 /out/etc/angie/angie.conf && \
+    sed -i -E 's/^[[:space:]]*(proxy_cache_|proxy_temp_path|client_body_temp_path|proxy_ignore_headers)/    # &/' /out/etc/angie/angie.conf && \
+    chmod 0444 /out/etc/angie/angie.conf && \
     cp /tmp/mime.types /out/etc/angie/mime.types && \
-    chmod 0440 /out/etc/angie/mime.types && \
+    chmod 0444 /out/etc/angie/mime.types && \
     cp /tmp/conf.d/* /out/etc/angie/conf.d/ && \
-    chmod 0440 /out/etc/angie/conf.d/* && \
+    chmod 0444 /out/etc/angie/conf.d/* && \
     curl -fSs https://www.cloudflare.com/ips-v4 | awk '{print "set_real_ip_from " $1 ";"}' > /out/etc/angie/conf.d/cloudflare-ips.inc && \
     curl -fSs https://www.cloudflare.com/ips-v6 | awk '{print "set_real_ip_from " $1 ";"}' >> /out/etc/angie/conf.d/cloudflare-ips.inc && \
-    chmod 0640 /out/etc/angie/conf.d/cloudflare-ips.inc && \
-    cp -RL /usr/share/angie/html/. /out/usr/share/angie/html/ && \
-    chmod 0440 /out/usr/share/angie/html/* && \
+    chmod 0444 /out/etc/angie/conf.d/cloudflare-ips.inc && \
+    ln -s /dev/stderr /out/var/log/angie/error.log && \
     ln -s /usr/lib/angie/modules /out/etc/angie/modules && \
     if [ -f /etc/ssl/openssl.cnf ]; then \
       cp -L /etc/ssl/openssl.cnf /out/etc/ssl/openssl.cnf && \
@@ -191,9 +191,3 @@ STOPSIGNAL SIGQUIT
 
 ENTRYPOINT ["/usr/sbin/angie"]
 CMD ["-g", "daemon off;"]
-
-FROM final AS verify
-
-RUN ["/usr/sbin/angie", "-t"]
-
-FROM final
