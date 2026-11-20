@@ -1,6 +1,7 @@
-.PHONY: compose-validate security-trivy \
-       shell-lint shell-fmt shell-test shell-coverage shell-verify secrets-scan \
-       verify clean
+.PHONY: security-trivy \
+       shell-lint shell-fmt shell-test shell-coverage shell-verify \
+       go-fmt go-lint go-test go-coverage vulncheck go-verify \
+       docker-lint secrets-scan verify clean
 
 SHELL_SCRIPTS := $(shell find usr/local/bin -type f ! -name '.*')
 TEST_SCRIPTS  := $(shell find tests -type f -name '*.sh')
@@ -24,17 +25,35 @@ shell-coverage:
 
 shell-verify: shell-lint shell-test
 
+go-fmt:
+	@test -z "$$(gofmt -s -l .)" || (echo "Unformatted files found. Run 'gofmt -s -w .' to fix them." && false)
+
+go-lint:
+	golangci-lint run ./...
+	go build -o /dev/null ./probe
+
+go-test:
+	go test -v -race ./...
+
+go-coverage:
+	go test -v -race -coverprofile=coverage.out ./...
+	go tool cover -func=coverage.out
+
+vulncheck:
+	govulncheck ./...
+
+go-verify: go-fmt go-lint go-test vulncheck
+
+docker-lint:
+	hadolint Dockerfile
+
 secrets-scan:
 	gitleaks detect --source . --no-git --no-color
-
-compose-validate:
-	docker compose -f docker-compose.yaml config --quiet
 
 security-trivy:
 	trivy fs --severity CRITICAL,HIGH .
 
-verify: compose-validate shell-verify secrets-scan security-trivy
+verify: shell-verify go-verify docker-lint secrets-scan security-trivy
 
 clean:
-	rm -rf $(COVERAGE_DIR) .bashunit
-
+	rm -rf $(COVERAGE_DIR) .bashunit coverage.out

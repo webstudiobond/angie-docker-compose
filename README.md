@@ -54,8 +54,6 @@ Most Docker Compose guides and deployment setups for Angie prioritize rapid init
         ├── certs/                   # ACME Let's Encrypt certificates
         ├── cache/                   # Proxy cache storage
         ├── html/                    # Static HTML files
-        ├── ssl/                     # SSL configuration directory
-        │   └── dhparam.pem          # Generated Diffie-Hellman parameters
         ├── logs/                    # Angie system error logs
         │   └── domains/             # Per-domain access and error logs
         └── conf.d/                  # Configuration snippets and virtual hosts
@@ -111,24 +109,14 @@ sudo chmod 0750 /home/angie
 ### 2. Create Directory Structure
 
 ```bash
-sudo mkdir -p /home/angie/data/{cache,certs,conf.d/{domains,main},html,logs/domains,ssl}
-sudo chown -R root:angie /home/angie/data/{conf.d,html,ssl}
-sudo find /home/angie/data/{conf.d,html,ssl} -type d -exec chmod 0750 {} +
+sudo mkdir -p /home/angie/data/{cache,certs,conf.d/{domains,main},html,logs/domains}
+sudo chown -R root:angie /home/angie/data/{conf.d,html}
+sudo find /home/angie/data/{conf.d,html} -type d -exec chmod 0750 {} +
 sudo chown -R angie:angie /home/angie/data/{cache,certs,logs}
 sudo find /home/angie/data/{cache,certs,logs} -type d -exec chmod 0700 {} +
 ```
 
-### 3. Generate Diffie-Hellman Parameters (DHParam)
-
-Generate custom 2048-bit Diffie-Hellman parameters and set strict owner-only permissions:
-
-```bash
-sudo openssl dhparam -out /home/angie/data/ssl/dhparam.pem 2048
-sudo chown root:angie /home/angie/data/ssl/dhparam.pem
-sudo chmod 0440 /home/angie/data/ssl/dhparam.pem
-```
-
-### 4. Download Configuration Files
+### 3. Download Configuration Files
 
 Download the complete set of configuration files and conf.d snippets from the repository:
 
@@ -146,7 +134,7 @@ sudo curl -fsSL ${REPO}/data/conf.d/http-protocols.conf -o /home/angie/data/conf
 sudo curl -fsSL ${REPO}/data/conf.d/security-headers.inc -o /home/angie/data/conf.d/security-headers.inc
 ```
 
-### 5. Download Compose Manifest and Environment Config
+### 4. Download Compose Manifest and Environment Config
 
 ```bash
 sudo curl -fsSL ${REPO}/docker-compose.yaml -o /home/angie/docker-compose.yaml
@@ -155,7 +143,7 @@ sudo chown root:root /home/angie/{docker-compose.yaml,.env}
 sudo chmod 0600 /home/angie/{docker-compose.yaml,.env}
 ```
 
-### 6. Configure Environment
+### 5. Configure Environment
 
 ```bash
 sed -i "s/^APP_UID=.*/APP_UID=${APP_UID}/" /home/angie/.env
@@ -168,7 +156,7 @@ Open `/home/angie/.env`, set `HOST_IP` to your server's public IPv4 address (def
 sudo nano /home/angie/.env
 ```
 
-### 7. Cloudflare IP Automation
+### 6. Cloudflare IP Automation
 
 Automate periodic fetching of the latest official Cloudflare IPv4 and IPv6 CIDR ranges to ensure `CF-Connecting-IP` restoration remains accurate.
 
@@ -196,7 +184,7 @@ sudo chown root:root /etc/cron.d/update-cf-ips
 sudo chmod 0400 /etc/cron.d/update-cf-ips
 ```
 
-### 8. Host Permissions & Privilege Separation
+### 7. Host Permissions & Privilege Separation
 
 Keep deployment inputs, server configurations, and system scripts outside the service account's write access. The container runs with numeric `APP_UID:APP_GID` (`angie:angie`, typically `2001:2001`) and requires write access strictly to runtime storage directories (`cache/`, `certs/`, and `logs/`). Under this model, a compromised Angie edge process cannot modify server configurations, overwrite virtual hosts, or manipulate Docker manifests.
 
@@ -213,8 +201,6 @@ Runtime log storage (`logs/`, `logs/domains/`) is owned by `angie:angie` with `0
 | `data/conf.d/*` files (snippets) | `root:angie` | `0440` | Strictly read-only configuration directives and snippets |
 | `data/conf.d/domains/*.conf` | `root:angie` | `0440` | Strictly read-only domain virtual host configurations |
 | `data/conf.d/cloudflare-ips.inc` | `root:angie` | `0640` | Dynamically updated Cloudflare IP include file |
-| `data/ssl/` directory | `root:angie` | `0750` | Read-only SSL configuration directory |
-| `data/ssl/dhparam.pem` | `root:angie` | `0440` | Read-only Diffie-Hellman parameters |
 | `data/html/` directory and files | `root:angie` | `0750` / `0440` | Read-only static maintenance and error assets |
 | `data/certs/` and subdirectories | `angie:angie` | `0700` | Private ACME Let's Encrypt certificates and account keys |
 | `data/certs/*` files | `angie:angie` | `0600` | Private ACME certificates and private keys |
@@ -241,11 +227,10 @@ sudo chmod 0600 /home/angie/docker-compose.yaml /home/angie/.env
 sudo chown root:angie /home/angie/data/{angie.conf,mime.types,modules.conf}
 sudo chmod 0440 /home/angie/data/{angie.conf,mime.types,modules.conf}
 
-sudo chown -R root:angie /home/angie/data/{conf.d,html,ssl}
-sudo find /home/angie/data/{conf.d,html,ssl} -type d -exec chmod 0750 {} +
+sudo chown -R root:angie /home/angie/data/{conf.d,html}
+sudo find /home/angie/data/{conf.d,html} -type d -exec chmod 0750 {} +
 sudo find /home/angie/data/{conf.d,html} -type f -exec chmod 0440 {} +
 [ -f /home/angie/data/conf.d/cloudflare-ips.inc ] && sudo chmod 0640 /home/angie/data/conf.d/cloudflare-ips.inc
-[ -f /home/angie/data/ssl/dhparam.pem ] && sudo chmod 0440 /home/angie/data/ssl/dhparam.pem
 
 sudo chown -R angie:angie /home/angie/data/{cache,certs,logs}
 sudo find /home/angie/data/{cache,certs,logs} -type d -exec chmod 0700 {} +

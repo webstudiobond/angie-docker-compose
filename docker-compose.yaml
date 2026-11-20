@@ -2,12 +2,12 @@ name: angie
 
 services:
   angie:
-    image: docker.angie.software/angie:latest
+    image: ghcr.io/webstudiobond/angie:latest
     container_name: angie
     hostname: angie
     restart: always
     healthcheck:
-      test: ["CMD", "curl", "-f", "-s", "-o", "/dev/null", "http://127.0.0.1/healthz"]
+      test: ["CMD", "/usr/local/bin/probe"]
       interval: 30s
       timeout: 5s
       retries: 3
@@ -23,7 +23,6 @@ services:
       - ./data/mime.types:/etc/angie/mime.types:ro
       - ./data/modules.conf:/etc/angie/modules.conf:ro
       - ./data/conf.d:/etc/angie/conf.d:ro
-      - ./data/ssl/dhparam.pem:/etc/angie/dhparam.pem:ro
       - ./data/certs:/var/lib/angie/acme:rw
       - ./data/html:/usr/share/angie/html:ro
       - ./data/logs:/var/log/angie:rw
@@ -59,4 +58,4 @@ networks:
     name: frontend_gateway
     ipam:
       config:
-          - subnet: 172.20.0.0/16
+        - subnet: 172.20.0.0/16
